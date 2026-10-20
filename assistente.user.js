@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Assistente Moodle Demà - Equipe Bojador (Auto-Update)
-// @namespace    https://demadigital.renapsi.org.br/
-// @version      3.0.0
+// @namespace    https://github.com/GbezerraOficial/assistente-moodle
+// @version      3.1.0
 // @description  Seleção automática de turmas (M/V), Busca Ativa, Mensagens e Restrições (5+ blocos) sincronizado via GitHub.
 // @match        *://demadigital.renapsi.org.br/*
 // @run-at       document-idle
@@ -11,7 +11,6 @@
 (function() {
     'use strict';
 
-    // Remove instância anterior caso a página recarregue o script
     const painelAntigo = document.getElementById('painel-assistente-dema');
     if (painelAntigo) painelAntigo.remove();
 
@@ -20,18 +19,14 @@
 
     if (!tabelaParticipantes && !secaoRestricoes) return;
 
-    // Expressões Regulares Universais validadas para as 339 turmas (0M..6M e 0V..6V)
     const REGEX_MANHA = /\.\d*M\./i;
     const REGEX_TARDE = /\.\d*V\./i;
 
-    // Turmas sinalizadas na planilha como "Turma a ser desativada"
     const TURMAS_DESATIVADAS = [
         "671.APC02.2V.100", "671.APC02.4M.54", "671.APC02.4V.54", "671.APC02.4V.78",
         "3872.APC01.4V.101", "3872.APC01.2M.52", "3872.APC01.2M.55", "671.APC01.4V.101"
     ];
 
-    // Base oficial de turmas por Instrutor (Unidade Bojador - 339 turmas)
-    // DICA: Sempre que quiser atualizar as turmas para toda a equipe, basta editar esta lista no GitHub!
     const INSTRUTORES_PADRAO = {
         "Guilherme — Empregabilidade": ["03872.APC09.0M.54","3872.APC09.0M.100","3872.APC09.0M.104","3872.APC09.0M.105","3872.APC09.0M.106","3872.APC09.0M.108","3872.APC09.0M.115","3872.APC09.0M.52","3872.APC09.0M.55","3872.APC09.0M.57","3872.APC09.0M.71","3872.APC09.0M.74","3872.APC09.0M.76","3872.APC09.0M.78","3872.APC09.0M.85","3872.APC09.0M.89","3872.APC09.0M.91","3872.APC09.0M.92","3872.APC09.0M.94","3872.APC09.0M.96","3872.APC09.0M.97","3872.APC09.0M.98","3872.APC09.0V.01","3872.APC09.0V.100","3872.APC09.0V.104","3872.APC09.0V.105","3872.APC09.0V.106","3872.APC09.0V.108","3872.APC09.0V.115","3872.APC09.0V.52","3872.APC09.0V.54","3872.APC09.0V.55","3872.APC09.0V.57","3872.APC09.0V.71","3872.APC09.0V.74","3872.APC09.0V.76","3872.APC09.0V.78","3872.APC09.0V.85","3872.APC09.0V.89","3872.APC09.0V.91","3872.APC09.0V.94","3872.APC09.0V.96","3872.APC09.0V.97","3872.APC09.0V.98","3872.APC09.1M.71","4.0.APC09.0M.91","4.0.APC09.0V.91","4.APC09.0M.71","4.APC09.0V.78","671.APC09.0M.105","671.APC09.0M.106","671.APC09.0M.54","671.APC09.0M.71","671.APC09.0M.74","671.APC09.0M.78","671.APC09.0M.85","671.APC09.0M.91","671.APC09.0M.97","671.APC09.0V.106","671.APC09.0V.54","671.APC09.0V.71","671.APC09.0V.74","671.APC09.0V.78","671.APC09.0V.85","671.APC09.0V.91","671.APC09.0V.96"],
         "Guilherme — Profissa 4.0": ["4.0.APC02.2M.91","4.0.APC02.2V.91","4.0.APC02.3M.91","4.0.APC02.3V.91","4.0.APC02.4M.91","4.0.APC02.4V.91","4.0.APC02.5M.91","4.0.APC02.5V.91","4.APC02.2M.54","4.APC02.2M.71","4.APC02.2M.85","4.APC02.2V.100","4.APC02.2V.71","4.APC02.2V.85","4.APC02.2V.94","4.APC02.3M.100","4.APC02.3M.74","4.APC02.3M.78","4.APC02.3M.79","4.APC02.3M.89","4.APC02.3V.100","4.APC02.3V.103","4.APC02.3V.78","4.APC02.4M.100","4.APC02.4M.103","4.APC02.4M.71","4.APC02.4M.98","4.APC02.4V.100","4.APC02.4V.103","4.APC02.4V.71","4.APC02.4V.74","4.APC02.4V.96","4.APC02.5M.100"],
@@ -66,7 +61,6 @@
         return listaBase.some(cod => texto.includes(normalizar(cod)));
     }
 
-    // Criação do Painel Flutuante (100% DOM API para preservar todos os eventos)
     const painel = document.createElement('div');
     painel.id = 'painel-assistente-dema';
     painel.style.cssText = `
@@ -77,13 +71,12 @@
         width: 305px;
     `;
 
-    // Cabeçalho com Selo Nuvem v3.0 e Botão Minimizar
     const header = document.createElement('div');
     header.style.cssText = 'display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e0e0e0; padding-bottom:6px;';
     
     const titulo = document.createElement('strong');
     titulo.style.cssText = 'color:#001ae6; font-size:13px;';
-    titulo.innerText = '⚡ Assistente Demà [Nuvem v3.0]';
+    titulo.innerText = '⚡ Assistente Demà [Nuvem v3.1]';
     header.appendChild(titulo);
 
     const btnMin = document.createElement('button');
@@ -103,7 +96,6 @@
         btnMin.innerText = oculto ? '—' : '➕';
     });
 
-    // 1. Seletor de Sala ou Instrutores
     const labelModo = document.createElement('label');
     labelModo.innerText = '1. Filtro por Sala ou Instrutores:';
     labelModo.style.cssText = 'font-size:11px; color:#555; font-weight:bold; margin-bottom:-3px;';
@@ -144,7 +136,6 @@
     });
     corpo.appendChild(selectInstrutor);
 
-    // Botão Adicionar / Editar Turmas do Instrutor
     const btnGerenciarTurmas = document.createElement('button');
     btnGerenciarTurmas.type = 'button';
     btnGerenciarTurmas.innerText = '➕ Adicionar / Editar Turmas do Instrutor';
@@ -170,7 +161,7 @@
             const limpas = novaEntrada.split(/[\s,;]+/).map(s => s.trim()).filter(Boolean);
             if (limpas.length === 0 && INSTRUTORES_PADRAO[alvo]) {
                 localStorage.removeItem('dema_lista_' + alvo);
-                alert(`🔄 Lista de ${alvo} sincronizada com o padrão da nuvem!`);
+                alert(`🔄 Lista de ${alvo} sincronizada com o padrão do GitHub!`);
             } else {
                 localStorage.setItem('dema_lista_' + alvo, JSON.stringify(limpas));
                 alert(`✅ Lista atualizada! ${alvo} agora possui ${limpas.length} turmas.`);
@@ -184,12 +175,12 @@
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.innerText = texto;
-        btn.style.cssText = `background:${corFundo}; color:${corTexto}; border:none; padding:8px 10px; border-radius:6px; cursor:pointer; font-weight:bold; font-size:12px; text-align:center; width:100%;`;
+        btn.style.cssText = `background:${corFundo}; color:${corTexto}; border:none; padding:8px 10px; border-radius:6px; cursor:pointer; font-weight:bold; font-size:12px; text-align:center; width:100%; transition:0.2s;`;
         return btn;
     };
 
     // =========================================================================
-    // MÓDULO 1: ABA DE PARTICIPANTES (BUSCA ATIVA + MENSAGEM AUTOMÁTICA)
+    // MÓDULO 1: ABA DE PARTICIPANTES
     // =========================================================================
     if (tabelaParticipantes) {
         const labelEngajamento = document.createElement('label');
@@ -289,7 +280,6 @@
         linhaBotoesTurno.appendChild(btnV);
         corpo.appendChild(linhaBotoesTurno);
 
-        // Botão para Configurar Texto Padrão de Mensagem
         const btnTemplate = document.createElement('button');
         btnTemplate.type = 'button';
         const atualizarTextoBtnTemplate = () => {
@@ -302,7 +292,7 @@
             const atual = localStorage.getItem('dema_msg_padrao') || '';
             const resp = prompt(
                 "TEXTO PADRÃO DE MENSAGEM:\n\n" +
-                "Digite abaixo a mensagem que deve aparecer já preenchida quando a janela de mensagem abrir (ou deixe em branco para não preencher nada):",
+                "Digite abaixo a mensagem que deve aparecer já preenchida quando a janela de mensagem abrir:",
                 atual
             );
             if (resp !== null) {
@@ -317,58 +307,86 @@
     // MÓDULO 2: SEÇÃO RESTRINGIR ACESSO (TODOS OS 5+ BLOCOS DE GRUPOS E DATAS)
     // =========================================================================
     if (secaoRestricoes) {
-        function sincronizarMoodleEJson(anoAlvo, mesAlvo, diaAlvo) {
-            const atualizarDatas = Boolean(anoAlvo && mesAlvo && diaAlvo);
+        // Barra de status dentro do painel (não usa alert() para não congelar o AJAX do Moodle!)
+        const statusMsg = document.createElement('div');
+        statusMsg.style.cssText = 'font-size:11px; font-weight:bold; color:#2e7d32; background:#e8f5e9; padding:6px 8px; border-radius:6px; text-align:center; display:none;';
 
-            const executarNoMoodle = (ano, mes, dia, mudarData) => {
-                if (mudarData && window.Y) {
-                    document.querySelectorAll('.availability_date').forEach(bloco => {
-                        const sels = bloco.querySelectorAll('select');
-                        const sHora = bloco.querySelector('select[data-field="hour"]') || sels[4];
-                        const sMin = bloco.querySelector('select[data-field="minute"]') || sels[5];
-                        const hora = sHora ? parseInt(sHora.value, 10) : 0;
-                        const min = sMin ? parseInt(sMin.value, 10) : 0;
+        const mostrarStatus = (texto, cor = '#2e7d32', fundo = '#e8f5e9') => {
+            statusMsg.style.display = 'block';
+            statusMsg.style.color = cor;
+            statusMsg.style.background = fundo;
+            statusMsg.innerText = texto;
+        };
 
-                        const ts = Math.floor(new Date(ano, mes - 1, dia, hora, min, 0).getTime() / 1000);
-                        try {
-                            const yNode = window.Y.one(bloco);
-                            if (yNode && yNode.setData) yNode.setData('time', ts);
-                        } catch (e) {}
-                    });
-                }
+        // Encontra absolutamente todas as linhas de Data na tela (pelos selects de Mês/Dia/Ano)
+        function localizarTodasLinhasDeData() {
+            const area = document.querySelector('#id_availabilityconditionsheader, .availability-field') || document;
+            const linhasEncontradas = [];
+            const containersVistos = new Set();
 
-                if (window.M && M.core_availability && M.core_availability.form) {
-                    try { M.core_availability.form.update(); } catch (e) {}
-                }
+            // Método 1: Por classe .availability_date
+            area.querySelectorAll('.availability_date').forEach(el => {
+                containersVistos.add(el);
+                linhasEncontradas.push(el);
+            });
 
-                if (mudarData) {
-                    const inputJson = document.querySelector('[name="availabilityconditionsjson"]');
-                    if (inputJson && inputJson.value) {
-                        try {
-                            const arvore = JSON.parse(inputJson.value);
-                            const varrerNos = (no) => {
-                                if (!no || typeof no !== 'object') return;
-                                if (no.type === 'date' && typeof no.t === 'number') {
-                                    const dt = new Date(no.t * 1000);
-                                    dt.setFullYear(ano, mes - 1, dia);
-                                    no.t = Math.floor(dt.getTime() / 1000);
-                                }
-                                if (Array.isArray(no.c)) no.c.forEach(varrerNos);
-                            };
-                            varrerNos(arvore);
-                            inputJson.value = JSON.stringify(arvore);
-                        } catch (e) {}
+            // Método 2: Qualquer select que tenha "outubro" nas opções (garante 100% os 5+ blocos)
+            area.querySelectorAll('select').forEach(sel => {
+                const temMeses = Array.from(sel.options).some(o => o.text.toLowerCase().includes('outubro'));
+                if (temMeses) {
+                    const container = sel.closest('.availability_date, .availability-item, span, div') || sel.parentElement;
+                    if (container && !containersVistos.has(container)) {
+                        containersVistos.add(container);
+                        linhasEncontradas.push(container);
                     }
                 }
-            };
+            });
 
-            if (window.M || window.Y) {
-                executarNoMoodle(anoAlvo, mesAlvo, diaAlvo, atualizarDatas);
-            } else {
-                const sc = document.createElement('script');
-                sc.textContent = `(${executarNoMoodle.toString()})(${anoAlvo || 0}, ${mesAlvo || 0}, ${diaAlvo || 0}, ${atualizarDatas});`;
-                document.documentElement.appendChild(sc);
-                sc.remove();
+            return linhasEncontradas;
+        }
+
+        function sincronizarArvoreMoodle(anoAlvo, mesAlvo, diaAlvo) {
+            const mudarData = Boolean(anoAlvo && mesAlvo && diaAlvo);
+            const linhas = localizarTodasLinhasDeData();
+
+            if (mudarData && window.Y) {
+                linhas.forEach(bloco => {
+                    const sels = bloco.querySelectorAll('select');
+                    const sHora = bloco.querySelector('select[data-field="hour"]') || sels[4];
+                    const sMin = bloco.querySelector('select[data-field="minute"]') || sels[5];
+                    const hora = sHora ? parseInt(sHora.value, 10) : 0;
+                    const min = sMin ? parseInt(sMin.value, 10) : 0;
+
+                    const ts = Math.floor(new Date(anoAlvo, mesAlvo - 1, diaAlvo, hora, min, 0).getTime() / 1000);
+                    try {
+                        const yNode = window.Y.one(bloco);
+                        if (yNode && yNode.setData) yNode.setData('time', ts);
+                    } catch (e) {}
+                });
+            }
+
+            if (window.M && M.core_availability && M.core_availability.form) {
+                try { M.core_availability.form.update(); } catch (e) {}
+            }
+
+            if (mudarData) {
+                const inputJson = document.querySelector('[name="availabilityconditionsjson"]');
+                if (inputJson && inputJson.value) {
+                    try {
+                        const arvore = JSON.parse(inputJson.value);
+                        const varrerNos = (no) => {
+                            if (!no || typeof no !== 'object') return;
+                            if (no.type === 'date' && typeof no.t === 'number') {
+                                const dt = new Date(no.t * 1000);
+                                dt.setFullYear(anoAlvo, mesAlvo - 1, diaAlvo);
+                                no.t = Math.floor(dt.getTime() / 1000);
+                            }
+                            if (Array.isArray(no.c)) no.c.forEach(varrerNos);
+                        };
+                        varrerNos(arvore);
+                        inputJson.value = JSON.stringify(arvore);
+                    } catch (e) {}
+                }
             }
         }
 
@@ -430,7 +448,7 @@
                 if (alvo) {
                     alvo.value = id;
                     alvo.dispatchEvent(new Event('change', { bubbles: true }));
-                    sincronizarMoodleEJson();
+                    sincronizarArvoreMoodle();
                     adicionadas++;
                     await new Promise(r => setTimeout(r, 45));
                 }
@@ -443,17 +461,17 @@
         labelRestr.style.cssText = 'font-size:11px; color:#1a237e; font-weight:bold; margin-top:4px; margin-bottom:-3px;';
         corpo.appendChild(labelRestr);
 
-        // Botão 1: Preencher Grupos M e V em todos os blocos
         const btnRestr = criarBotao('⚡ Preencher Turmas M e V (Todos Blocos)', '#001ae6');
         btnRestr.addEventListener('click', async () => {
             const subs = Array.from(document.querySelectorAll('.availability-childlist'))
                 .filter(e => !e.querySelector('.availability-childlist'));
 
             if (subs.length === 0) {
-                alert('Abra a seção "Restringir acesso" contendo os blocos de grupos!');
+                mostrarStatus('⚠️ Abra a seção "Restringir acesso" primeiro!', '#c62828', '#ffebee');
                 return;
             }
 
+            mostrarStatus('⏳ Preenchendo turmas nos blocos...', '#1565c0', '#e3f2fd');
             let totalM = 0, totalV = 0;
             for (let i = 0; i < subs.length; i++) {
                 const regexTurno = detectarTurnoDoBloco(subs[i], i);
@@ -462,22 +480,19 @@
                 else totalV += qtd;
             }
 
-            sincronizarMoodleEJson();
-            alert(`✅ Concluído em ${subs.length} bloco(s)!\n☀️ Manhã (M): +${totalM} turmas\n🌇 Tarde (V): +${totalV} turmas`);
+            sincronizarArvoreMoodle();
+            mostrarStatus(`✅ ${subs.length} blocos preenchidos! (+${totalM} M / +${totalV} V)`);
         });
         corpo.appendChild(btnRestr);
 
-        // Botão 2: Seletor de Data (Hoje por padrão) + Aplicar em Todos os 5+ Blocos
+        // Linha de Data (Hoje por padrão) + Botão para Todos os 5+ Blocos
         const linhaData = document.createElement('div');
         linhaData.style.cssText = 'display:flex; gap:5px; align-items:center;';
 
         const inputDate = document.createElement('input');
         inputDate.type = 'date';
         const hj = new Date();
-        const yyyy = hj.getFullYear();
-        const mm = String(hj.getMonth() + 1).padStart(2, '0');
-        const dd = String(hj.getDate()).padStart(2, '0');
-        inputDate.value = `${yyyy}-${mm}-${dd}`;
+        inputDate.value = `${hj.getFullYear()}-${String(hj.getMonth() + 1).padStart(2, '0')}-${String(hj.getDate()).padStart(2, '0')}`;
         inputDate.style.cssText = 'padding:6px 4px; border:1px solid #1565c0; border-radius:6px; font-size:11.5px; font-weight:bold; color:#1565c0; width:115px;';
 
         const btnData = criarBotao('📅 Aplicar Data (5+ Blocos)', '#1565c0');
@@ -488,52 +503,47 @@
             const anoNum = parseInt(partes[0], 10);
             const mesNum = parseInt(partes[1], 10);
             const diaNum = parseInt(partes[2], 10);
-
             const a = String(anoNum), m = String(mesNum), d = String(diaNum);
 
-            const conjuntosData = new Set();
-            document.querySelectorAll('.availability_date').forEach(el => conjuntosData.add(el));
-            document.querySelectorAll('select[data-field="day"]').forEach(sel => {
-                const pai = sel.closest('.availability_date') || sel.parentElement;
-                if (pai) conjuntosData.add(pai);
-            });
-
-            const listaBlocosData = Array.from(conjuntosData);
-            if (listaBlocosData.length === 0) {
-                alert('Nenhum bloco de data encontrado na tela!');
+            const listaLinhasData = localizarTodasLinhasDeData();
+            if (listaLinhasData.length === 0) {
+                mostrarStatus('⚠️ Nenhuma linha de data encontrada na tela!', '#c62828', '#ffebee');
                 return;
             }
 
+            mostrarStatus(`⏳ Atualizando ${listaLinhasData.length} linhas de data...`, '#1565c0', '#e3f2fd');
+
             let atualizados = 0;
-            for (const b of listaBlocosData) {
-                const sels = b.querySelectorAll('select');
-                const selDia = b.querySelector('select[data-field="day"]') || sels[1];
-                const selMes = b.querySelector('select[data-field="month"]') || sels[2];
-                const selAno = b.querySelector('select[data-field="year"]') || sels[3];
+            for (const b of listaLinhasData) {
+                const sels = Array.from(b.querySelectorAll('select'));
+                const selMes = b.querySelector('select[data-field="month"]') || sels.find(s => Array.from(s.options).some(o => o.text.toLowerCase().includes('outubro'))) || sels[2];
+                const idxMes = sels.indexOf(selMes);
+                const selDia = b.querySelector('select[data-field="day"]') || (idxMes > 0 ? sels[idxMes - 1] : sels[1]);
+                const selAno = b.querySelector('select[data-field="year"]') || (idxMes >= 0 ? sels[idxMes + 1] : sels[3]);
 
                 if (selDia && selMes && selAno) {
-                    for (const [sel, val] of [[selAno, a], [selMes, m], [selDia, d]]) {
-                        sel.focus();
-                        sel.dispatchEvent(new Event('focus', { bubbles: true }));
-                        sel.value = val;
-                        sel.dispatchEvent(new Event('input', { bubbles: true }));
-                        sel.dispatchEvent(new Event('change', { bubbles: true }));
-                        sel.dispatchEvent(new Event('blur', { bubbles: true }));
-                    }
+                    selAno.value = a;
+                    selMes.value = m;
+                    selDia.value = d;
+                    // Dispara apenas 1 evento change por linha e aguarda o AJAX do Moodle responder sem congelar!
+                    selDia.dispatchEvent(new Event('change', { bubbles: true }));
                     atualizados++;
-                    await new Promise(r => setTimeout(r, 120));
+                    await new Promise(r => setTimeout(r, 220));
                 }
             }
 
-            sincronizarMoodleEJson(anoNum, mesNum, diaNum);
-            alert(`📅 Sucesso! Todas as ${atualizados} linhas de data (em todos os blocos) foram atualizadas para ${d}/${m}/${a}!`);
+            // Aguarda as chamadas AJAX do Moodle terminarem e crava a data no YUI e no JSON oculto
+            sincronizarArvoreMoodle(anoNum, mesNum, diaNum);
+            await new Promise(r => setTimeout(r, 600));
+            sincronizarArvoreMoodle(anoNum, mesNum, diaNum);
+
+            mostrarStatus(`✅ Todas as ${atualizados} datas atualizadas para ${d}/${m}/${a}!`);
         });
 
         linhaData.appendChild(inputDate);
         linhaData.appendChild(btnData);
         corpo.appendChild(linhaData);
 
-        // Botão 3: Limpador Inteligente de Turmas Erradas / Duplicadas / Desativadas
         const btnLimpar = criarBotao('🧹 Limpar Turmas Erradas / Desativadas', '#c62828');
         btnLimpar.addEventListener('click', async () => {
             const subs = Array.from(document.querySelectorAll('.availability-childlist'))
@@ -571,10 +581,11 @@
                     }
                 }
             }
-            sincronizarMoodleEJson();
-            alert(`🧹 Limpeza concluída! ${removidas} restrições de grupo (vazias, duplicadas, desativadas ou fora do filtro) foram removidas.`);
+            sincronizarArvoreMoodle();
+            mostrarStatus(`🧹 ${removidas} turmas incorretas/duplicadas removidas!`);
         });
         corpo.appendChild(btnLimpar);
+        corpo.appendChild(statusMsg);
     }
 
     document.body.appendChild(painel);
